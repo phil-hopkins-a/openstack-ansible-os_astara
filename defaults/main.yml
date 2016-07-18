@@ -55,10 +55,10 @@ astara_system_home_folder: "/var/lib/{{ astara_system_user_name }}"
 astara_galera_user: astara
 astara_galera_database: astara
 astara_db_config: /etc/astara/astara.conf
-astara_db_plugin: "/etc/astara/{{ astara_plugins[astara_plugin_type].plugin_ini }}"
-astara_db_max_overflow: 20
-astara_db_pool_size: 120
-astara_db_pool_timeout: 30
+#astara_db_plugin: "/etc/astara/{{ astara_plugins[astara_plugin_type].plugin_ini }}"
+#astara_db_max_overflow: 20
+#astara_db_pool_size: 120
+#astara_db_pool_timeout: 30
 
 ## RabbitMQ info
 astara_rabbitmq_userid: astara
@@ -102,25 +102,8 @@ astara_plugins:
     plugin_conf_ini_overrides: "{{ astara_ml2_conf_ini_overrides }}"
     plugin_core: astara.plugins.ml2.plugin.Ml2Plugin
     plugin_ini: plugins/ml2/ml2_conf.ini
-  plumgrid:
-    plugin_conf_ini_overrides: "{{ astara_plumgrid_conf_ini_overrides }}"
-    plugin_core: networking_plumgrid.astara.plugins.plugin.NeutronPluginPLUMgridV2
-    plugin_ini: plugins/plumgrid/plumgrid.ini
-  nuage:
-    plugin_core: astara.plugins.nuage.plugin.NuagePlugin
-    plugin_ini: plugins/nuage/nuage.ini
-    plugin_conf_ini_overrides: "{{ astara_nuage_conf_ini_overrides }}"
 
 astara_services:
- astara-dhcp-agent:
-   group: astara_dhcp_agent
-   service_name: astara-dhcp-agent
-   service_en: "{{ astara_dhcp | bool }}"
-   service_conf: dhcp_agent.ini
-   service_rootwrap: rootwrap.d/dhcp.filters
-   config_options: --config-file /etc/astara/astara.conf --config-file /etc/astara/dhcp_agent.ini --log-file=/var/log/astara/astara-dhcp-agent.log
-   config_overrides: "{{ astara_dhcp_agent_ini_overrides }}"
-   config_type: "ini"
  orchestrator:
    group: orchestrator
    service_name: orchectrator
@@ -188,24 +171,20 @@ astara_local_ip: 127.0.0.1
 #uca_apt_repo_url: "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 
 # astara packages that must be installed before anything else
-astara_requires_pip_packages:
-  - virtualenv
-  - virtualenv-tools
-  - python-keystoneclient # Keystoneclient needed to OSA keystone lib
-  - httplib2
+
+astara_apt_packages:
+    - debootstrap
+    - qemu-utils
+    
+#astara_requires_pip_packages:
+#  - virtualenv
+#  - virtualenv-tools
+#  - python-keystoneclient # Keystoneclient needed to OSA keystone lib
+#  - httplib2
 
 astara_pip_packages:
-  - configobj
-  - cliff
-  - keystonemiddleware
-  - PyMySQL
-  - pycrypto
-  - python-glanceclient
-  - python-keystoneclient
-  - python-memcached
-  - python-astaraclient
-  - python-novaclient
-  - repoze.lru
+    - diskimage-builder
+    - shade
 
 
 ## Tunable overrides

@@ -1,18 +1,6 @@
 ---
 # Tasks to install astara
 
-- name: install packages to enable building the appliance
-  apt: pkg={{ item }} state=latest
-  with_items:
-    - debootstrap
-    - qemu-utils
-
-- name: install the pip packages to enable building the appliance
-  pip: name={{ item }}
-  with_items:
-    - diskimage-builder
-    - shade
-
 - name: Create the astara user
   user: home="/var/lib/astara" createhome=yes system=yes shell=/bin/false name=astara
 

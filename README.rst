@@ -1,4 +1,4 @@
-This code in preliminary. It is not ready for use. You have been warned!!!
+This code is preliminary. It is not ready for use. You have been warned!!!
 ==========================================================================
 
 os_astara role
