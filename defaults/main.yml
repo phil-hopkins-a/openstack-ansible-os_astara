@@ -1,0 +1,211 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+## Verbosity Options
+debug: False
+
+astara_git_repo: https://git.openstack.org/openstack/astara
+astara_git_install_branch: master
+
+astara_neutron_git_repo: https://git.openstack.org/openstack/astara-neutron
+astara_neutron_git_install_branch: master
+
+astara_appliance_git_repo: https://git.openstack.org/openstack/astara-appliance
+astara_appliance_git_install_branch: master
+
+#astara_developer_mode: false
+#astara_developer_constraints:
+#  - "git+{{ astara_git_repo }}@{{ astara_git_install_branch }}#egg=astara"
+#  - "git+{{ astara_fwaas_git_repo }}@{{ astara_fwaas_git_install_branch }}#egg=astara-fwaas"
+#  - "git+{{ astara_lbaas_git_repo }}@{{ astara_lbaas_git_install_branch }}#egg=astara-lbaas"
+3  - "git+{{ astara_vpnaas_git_repo }}@{{ astara_vpnaas_git_install_branch }}#egg=astara-vpnaas"
+
+# Name of the virtual env to deploy into
+astara_venv_tag: untagged
+astara_bin: "/openstack/venvs/astara-{{ astara_venv_tag }}/bin"
+
+astara_venv_download_url: http://127.0.0.1/venvs/untagged/ubuntu/astara.tgz
+
+# Set the lib dir path to that of the local python path where astara is installed.
+astara_lib_dir: "{{ astara_bin | dirname }}/lib/python2.7/site-packages/"
+
+# Fatal Deprecations
+astara_fatal_deprecations: False
+
+## astara User / Group
+astara_system_user_name: astara
+astara_system_group_name: astara
+astara_system_comment: astara system user
+astara_system_shell: /bin/false
+astara_system_home_folder: "/var/lib/{{ astara_system_user_name }}"
+
+## DB
+astara_galera_user: astara
+astara_galera_database: astara
+astara_db_config: /etc/astara/astara.conf
+astara_db_plugin: "/etc/astara/{{ astara_plugins[astara_plugin_type].plugin_ini }}"
+astara_db_max_overflow: 20
+astara_db_pool_size: 120
+astara_db_pool_timeout: 30
+
+## RabbitMQ info
+astara_rabbitmq_userid: astara
+astara_rabbitmq_vhost: /astara
+
+## Plugins
+#astara_plugin_core: "{{ astara_plugins[astara_plugin_type].plugin_core }}"
+# Other plugins can be added to the system by simply extending the list `astara_plugin_base`.
+# astara_plugin_base:
+#   - router
+#   - firewall
+#   - lbaas
+#   - lbaasv2
+#   - vpnaas
+#   - metering
+#   - qos
+#astara_plugin_base:
+#  - router
+#  - metering
+#astara_plugin_loaded_base: "{% for plugin in astara_plugin_base %}{{ plugin }}{% if not loop.last %},{% endif %}{% endfor %}"
+
+# Neutron Plugins
+astara_plugin_type: ml2.lxb
+
+astara_plugins:
+  ml2.lxb:
+    driver_firewall: astara.agent.linux.iptables_firewall.IptablesFirewallDriver
+    driver_interface: astara.agent.linux.interface.BridgeInterfaceDriver
+    drivers_type: "{{ astara_ml2_drivers_type }}"
+    l2_population: "{{ astara_l2_population }}"
+    mechanisms: "linuxbridge{% if astara_l2_population | bool %},l2population{% endif %}"
+    plugin_conf_ini_overrides: "{{ astara_ml2_conf_ini_overrides }}"
+    plugin_core: astara.plugins.ml2.plugin.Ml2Plugin
+    plugin_ini: plugins/ml2/ml2_conf.ini
+  ml2.ovs:
+    driver_firewall: astara.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+    driver_interface: astara.agent.linux.interface.OVSInterfaceDriver
+    drivers_type: "{{ astara_ml2_drivers_type }}"
+    l2_population: "{{ astara_l2_population }}"
+    mechanisms: "openvswitch{% if astara_l2_population | bool %},l2population{% endif %}"
+    plugin_conf_ini_overrides: "{{ astara_ml2_conf_ini_overrides }}"
+    plugin_core: astara.plugins.ml2.plugin.Ml2Plugin
+    plugin_ini: plugins/ml2/ml2_conf.ini
+  plumgrid:
+    plugin_conf_ini_overrides: "{{ astara_plumgrid_conf_ini_overrides }}"
+    plugin_core: networking_plumgrid.astara.plugins.plugin.NeutronPluginPLUMgridV2
+    plugin_ini: plugins/plumgrid/plumgrid.ini
+  nuage:
+    plugin_core: astara.plugins.nuage.plugin.NuagePlugin
+    plugin_ini: plugins/nuage/nuage.ini
+    plugin_conf_ini_overrides: "{{ astara_nuage_conf_ini_overrides }}"
+
+astara_services:
+ astara-dhcp-agent:
+   group: astara_dhcp_agent
+   service_name: astara-dhcp-agent
+   service_en: "{{ astara_dhcp | bool }}"
+   service_conf: dhcp_agent.ini
+   service_rootwrap: rootwrap.d/dhcp.filters
+   config_options: --config-file /etc/astara/astara.conf --config-file /etc/astara/dhcp_agent.ini --log-file=/var/log/astara/astara-dhcp-agent.log
+   config_overrides: "{{ astara_dhcp_agent_ini_overrides }}"
+   config_type: "ini"
+ orchestrator:
+   group: orchestrator
+   service_name: orchectrator
+   service_en: True
+   config_options: "--config-file /etc/astara/astara.conf --log-file=/var/log/astara/orchestrator.log"
+
+
+## Drivers
+
+## Quotas
+
+## General Astara configuration
+# If ``astara_api_workers`` is unset the system will use half the number of available VCPUs to
+# compute the number of api workers to use.
+# astara_api_workers: 16
+
+## Auth
+#astara_service_project_name: service
+#astara_service_project_domain_id: default
+#astara_service_user_domain_id: default
+#astara_service_role_name: admin
+#astara_service_user_name: astara
+#astara_service_name: astara
+#astara_service_type: network
+#astara_service_description: "OpenStack Networking"
+#astara_service_port: 9696
+#astara_service_proto: http
+#astara_service_publicuri_proto: "{{ openstack_service_publicuri_proto | default(astara_service_proto) }}"
+#astara_service_adminuri_proto: "{{ openstack_service_adminuri_proto | default(astara_service_proto) }}"
+#astara_service_internaluri_proto: "{{ openstack_service_internaluri_proto | default(astara_service_proto) }}"
+#astara_service_publicuri: "{{ astara_service_publicuri_proto }}://{{ external_lb_vip_address }}:{{ astara_service_port }}"
+#astara_service_publicurl: "{{ astara_service_publicuri }}"
+#astara_service_adminuri: "{{ astara_service_adminuri_proto }}://{{ internal_lb_vip_address }}:{{ astara_service_port }}"
+#astara_service_adminurl: "{{ astara_service_adminuri }}"
+#astara_service_internaluri: "{{ astara_service_internaluri_proto }}://{{ internal_lb_vip_address }}:{{ astara_service_port }}"
+#astara_service_internalurl: "{{ astara_service_internaluri }}"
+#astara_service_region: RegionOne
+
+## Keystone authentication middleware
+astara_keystone_auth_plugin: password
+
+
+## RPC
+astara_rpc_backend: rabbit
+astara_rpc_thread_pool_size: 64
+astara_rpc_conn_pool_size: 30
+astara_rpc_response_timeout: 60
+astara_rpc_workers: 1
+
+astara_service_in_ldap: false
+
+## Policy vars
+# Provide a list of access controls to update the default policy.json with. These changes will be merged
+# with the access controls in the default policy.json. E.g.
+#astara_policy_overrides:
+#  "create_subnet": "rule:admin_or_network_owner"
+#  "get_subnet": "rule:admin_or_owner or rule:shared"
+
+# astara_local_ip is used for the VXLAN local tunnel endpoint
+astara_local_ip: 127.0.0.1
+
+# Toggle the use of Ubuntu Cloud Archive
+#astara_uca_enable: True
+# Ubuntu Cloud Archive mirror URL
+#uca_apt_repo_url: "http://ubuntu-cloud.archive.canonical.com/ubuntu"
+
+# astara packages that must be installed before anything else
+astara_requires_pip_packages:
+  - virtualenv
+  - virtualenv-tools
+  - python-keystoneclient # Keystoneclient needed to OSA keystone lib
+  - httplib2
+
+astara_pip_packages:
+  - configobj
+  - cliff
+  - keystonemiddleware
+  - PyMySQL
+  - pycrypto
+  - python-glanceclient
+  - python-keystoneclient
+  - python-memcached
+  - python-astaraclient
+  - python-novaclient
+  - repoze.lru
+
+
+## Tunable overrides

@@ -1,0 +1,101 @@
+{% set controller_mgmt_ip = hostvars[groups['openstack-ubu-controller'][0]]['ansible_ens4'].ipv4.address %}
+
+[DEFAULT]
+
+admin_user = {{ lookup('ini', 'nova_admin_username section=DEFAULT file=/etc/neutron/neutron.conf') }}
+admin_password = {{ lookup('ini', 'nova_admin_password section=DEFAULT file=/etc/neutron/neutron.conf') }}
+admin_tenant_name = {{ lookup('ini', 'nova_admin_tenant_name section=DEFAULT file=/etc/neutron/neutron.conf') }}
+auth_url = {{ lookup('ini', 'auth_uri section=KEYSTONE_AUTHTOKEN file=/etc/neutron/neutron.conf') }}
+auth_strategy = keystone
+#auth_region = <None>)
+#rug_api_port = 44250
+ssh_public_key = {{ as_ssh_public_key }}
+management_network_id = {{ mgmt.network.id }}
+external_network_id = {{ public.network.id }}
+management_subnet_id = {{ mgmt_subnet.id }}
+external_subnet_id = {{ public_subnet.id }}
+management_prefix = {{ as_mgmt_prefix }}
+external_prefix = {{ as_external_prefix }}
+#astara_mgt_service_port = 5000
+#default_instance_flavor = 1
+interface_driver = {{ as_interface_driver }}
+neutron_port_security_extension_enabled = true
+enabled_drivers = {{ as_enabled_drivers }}
+# The ip of the interface Astara is listening on
+host = {{ controller_mgmt_ip }}
+#plug_external_port = true
+#ovs_integration_bridge = br-int
+#ovs_use_veth = false
+network_device_mtu = 1400
+#amqp_url = <None>
+#num_worker_processes = 16
+#num_worker_threads = 4
+#nova_metadata_ip = 127.0.0.1
+#nova_metadata_port = 8775
+#neutron_metadata_proxy_shared_secret =
+#debug = false
+verbose = true
+log_file = /var/log/astara/orchestrator.log
+provider_rules_path=/etc/astara/provider_rules.json
+
+[AGENT]
+root_helper = sudo astara-rootwrap /etc/astara/rootwrap.conf
+
+
+[ceilometer]
+#enabled = false
+#topic = notifications.info
+
+
+[coordination]
+#enabled = false
+#url = memcached://localhost:11211)
+#group_id = astara.orchestrator
+#heartbeat_interval = 1
+
+
+[database]
+connection = mysql://astara:{{ astara_db_pass }}@{{ controller_mgmt_ip }}/astara
+
+[keystone_authtoken]
+auth_version = 3.0
+auth_uri = {{ lookup('ini', 'auth_uri section=KEYSTONE_AUTHTOKEN file=/etc/neutron/neutron.conf') }}
+auth_url = http://{{ controller_mgmt_ip }}:35357
+auth_plugin = password
+auth_type = password
+project_domain_id = default
+user_domain_id = default
+project_name = service
+username = neutron
+password = {{ as_neutron_pass }}
+
+[loadbalancer]
+#image_uuid = {{ astara_router.ansible_facts.openstack_image.id }}
+#instance_flavor={{ m1_astara.id }}
+#mgt_service_port = 5000
+
+
+[matchmaker_redis]
+
+[oslo_messaging_amqp]
+#username =
+#password =
+
+[oslo_messaging_rabbit]
+rabbit_host = {{ as_rabbit_hosts }}
+#rabbit_port = 5672
+rabbit_userid = {{  as_rabbit_userid }}
+rabbit_password = {{ as_rabbit_password }}
+
+
+[pez]
+
+#pool_size = 1
+#image_uuid = <None>
+#flavor = <None>
+#rpc_topic = astara-pez
+
+[router]
+image_uuid = {{ astara_router.ansible_facts.openstack_image.id  }}
+instance_flavor={{ m1_astara.id }}
+#mgt_service_port = 5000

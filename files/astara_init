@@ -1,0 +1,8 @@
+description "Astara Orchestrator server"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+
+exec start-stop-daemon --start --chuid astara --exec /usr/local/bin/astara-orchestrator -- --config-file=/etc/astara/orchestrator.ini

@@ -1,0 +1,20 @@
+[Unit]
+Description=OpenStack Astara orchestrator
+After=mysql.service rabbitmq-server.service
+
+
+[Service]
+User=neutron
+Group=neutron
+Type=simple
+WorkingDirectory=/var/lib/astara
+PermissionsStartOnly=true
+ExecStartPre=/bin/mkdir -p /var/lock/astara /var/log/astara /var/lib/astara
+ExecStartPre=/bin/chown neutron:neutron /var/lock/astara /var/log/astara /var/lib/astara
+ExecStart=/etc/init.d/astara-orchestrator systemd-start
+Restart=on-failure
+LimitNOFILE=65535
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
