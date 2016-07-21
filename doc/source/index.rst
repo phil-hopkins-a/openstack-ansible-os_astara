@@ -12,7 +12,7 @@ This role will disable/remove the following:
    * neutron-dhcp-agent
    * neutron-metadata-agent
    * neutron-lbaas-agent
-   * other neutron agents ?
+   * other neutron agents ? vpnaas fwaas
 
 Basic Role Example
 ^^^^^^^^^^^^^^^^^^

@@ -20,37 +20,19 @@ uca_openstack_release: mitaka
 uca_repo_dist: "{{ ansible_lsb.codename }}-updates/{{ uca_openstack_release }}"
 uca_repo: "deb {{ uca_apt_repo_url }} {{ uca_repo_dist }} main"
 
-ovs_apt_packages:
-  - openvswitch-common
-  - openvswitch-switch
 
 ## APT Cache options
 cache_timeout: 600
 
-neutron_apt_packages:
-  - conntrack
-  - dnsmasq-base
-  - dnsmasq-utils
-  - ebtables
-  - ipset
-  - iputils-arping
-  - keepalived
-  - libpq-dev
-  - radvd
 
-neutron_lxb_apt_packages:
-  - bridge-utils
+astara_apt_packages:
 
-neutron_lbaas_apt_packages:
-  - haproxy
 
-neutron_vpnaas_apt_packages:
-  - openswan
+astara-neutron_apt_packages:
 
-neutron_apt_remove_packages:
-  - conntrackd
 
-neutron_lbaasv1_initscript_path: "/etc/init/neutron-lbaas-agent.conf"
-neutron_lbaasv2_initscript_path: "/etc/init/neutron-lbaasv2-agent.conf"
-neutron_lbaasv1_agent_servicename: "neutron-lbaas-agent"
-neutron_lbaasv2_agent_servicename: "neutron-lbaasv2-agent"
+astara-appliance_apt_packages:
+
+
+astara-orchestrator_initscript_path: "/etc/init/astara-orchestrator.conf"
+astara-orchestrator_servicename: "astara-orchestrator"

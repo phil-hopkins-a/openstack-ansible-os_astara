@@ -18,10 +18,6 @@ uca_openstack_release: newton
 uca_repo_dist: "{{ ansible_lsb.codename }}-updates/{{ uca_openstack_release }}"
 uca_repo: "deb {{ uca_apt_repo_url }} {{ uca_repo_dist }} main"
 
-ovs_apt_packages:
-  - openvswitch-common
-  - openvswitch-switch
-
 ## APT Cache options
 cache_timeout: 600
 
@@ -34,8 +30,6 @@ astara-neutron_apt_packages:
 astara-appliance_apt_packages:
 
 
-
-
-astara-orchestrator_initscript_path: "/etc/init/orchestrator.conf"
-astara-orchestrator_servicename: "orchestrator"
+astara-orchestrator_initscript_path: "/etc/init/astara-orchestrator.conf"
+astara-orchestrator_servicename: "astara-orchestrator"
 

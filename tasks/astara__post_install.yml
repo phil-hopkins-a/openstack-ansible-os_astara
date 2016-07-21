@@ -1,0 +1,107 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Copy astara config
+  config_template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner|default(astara_system_user_name) }}"
+    group: "{{ item.group|default(astara_system_group_name) }}"
+    mode: "0644"
+    config_overrides: "{{ item.config_overrides }}"
+    config_type: "{{ item.config_type }}"
+  with_items:
+    - src: "astara.conf.j2"
+      dest: "/etc/astara/astara.conf"
+      config_overrides: "{{ astara_astara_conf_overrides }}"
+      config_type: "ini"
+    - src: "rootwrap.conf.j2"
+      dest: "/etc/astara/rootwrap.conf"
+      owner: "root"
+      group: "root"
+      config_overrides: "{{ astara_rootwrap_conf_overrides }}"
+      config_type: "ini"
+    - src: "policy.json.j2"
+      dest: "/etc/astara/policy.json"
+      config_overrides: "{{ astara_policy_overrides }}"
+      config_type: "json"
+  notify:
+    - Restart astara services
+
+- name: Generate astara agent only Config
+  config_template:
+    src: "{{ item.value.service_conf }}.j2"
+    dest: "/etc/astara/{{ item.value.service_conf }}"
+    owner: "{{ astara_system_user_name }}"
+    group: "{{ astara_system_group_name }}"
+    mode: "0644"
+    config_overrides: "{{ item.value.config_overrides }}"
+    config_type: "{{ item.value.config_type }}"
+  with_dict: "{{ astara_services }}"
+  notify:
+    - Restart astara services
+  when:
+       - item.value.service_en | bool
+       - item.value.service_conf is defined
+       - item.value.group in group_names
+
+- name: Drop astara rootwrap filters
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "root"
+    group: "root"
+  with_items:
+    - { src: "rootwrap.d/debug.filters", dest: "/etc/astara/rootwrap.d/debug.filters" }
+    - { src: "rootwrap.d/dibbler.filters", dest: "/etc/astara/rootwrap.d/dibbler.filters" }
+    - { src: "rootwrap.d/ebtables.filters", dest: "/etc/astara/rootwrap.d/ebtables.filters" }
+    - { src: "rootwrap.d/functional-testing.filters", dest: "/etc/astara/rootwrap.d/functional-testing.filters" }
+    - { src: "rootwrap.d/ipset-firewall.filters", dest: "/etc/astara/rootwrap.d/ipset-firewall.filters" }
+    - { src: "rootwrap.d/iptables-firewall.filters", dest: "/etc/astara/rootwrap.d/iptables-firewall.filters" }
+    - { src: "rootwrap.d/openvswitch-plugin.filters", dest: "/etc/astara/rootwrap.d/openvswitch-plugin.filters" }
+    - { src: "rootwrap.d/lbaas-haproxy.filters", dest: "/etc/astara/rootwrap.d/lbaas-haproxy.filters" }
+    - { src: "rootwrap.d/vpnaas.filters", dest: "/etc/astara/rootwrap.d/vpnaas.filters" }
+  notify:
+    - Restart astara services
+
+- name: Drop astara agent rootwrap filters
+  copy:
+    src: "{{ item.value.service_rootwrap }}"
+    dest: "/etc/astara/{{ item.value.service_rootwrap }}"
+    owner: "root"
+    group: "root"
+  with_dict: "{{ astara_services }}"
+  when:
+      - item.value.service_en | bool
+      - item.value.service_rootwrap is defined
+  notify:
+    - Restart astara services
+
+- name: Drop metadata iptables checksum fix
+  copy:
+    src: "post-up-metadata-checksum"
+    dest: "/etc/network/if-up.d/post-up-metadata-checksum"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  when:
+    - astara_metadata_checksum_fix | bool
+    - astara_services['neutron-linuxbridge-agent']['group'] in group_names
+
+- name: Run metadata iptables checksum fix
+  command: /etc/network/if-up.d/post-up-metadata-checksum
+  when:
+    - astara_metadata_checksum_fix | bool
+    - astara_services['neutron-linuxbridge-agent']['group'] in group_names

@@ -13,10 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: Restart astara services
-  service:
-    name: "{{ item }}"
-    state: restarted
-    pattern: "{{ item }}"
-  with_items: astara_service_names
-  failed_when: false
+- name: Place the init script
+  template:
+    src: "astara-upstart-init.j2"
+    dest: "/etc/init/{{ program_name }}.conf"
+    mode: "0644"
+    owner: "root"
+    group: "root"
+  register: upstart_init
+
+- name: Reload init scripts
+  shell: |
+    initctl reload-configuration
+  when: upstart_init | changed

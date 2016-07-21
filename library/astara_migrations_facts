@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2015, Rackspace US, Inc.
+# Copyright 2016, Rackspace US, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,47 +21,47 @@ from ansible.module_utils.basic import *
 
 DOCUMENTATION = """
 ---
-module: neutron_migrations_facts
+module: astara_migrations_facts
 short_description:
-    - A module for gathering neutron migrations facts.
+    - A module for gathering astara migrations facts.
 description:
-    - This module creates a fact called 'neutron_migrations', which is a dict
+    - This module creates a fact called 'astara_migrations', which is a dict
       containing keys that represent each alembic migration branch.  The value
       for each key is another dict, containing a key value for the current
-      neutron revision for that branch (revision), and whether or not the
+      astara revision for that branch (revision), and whether or not the
       branch is currently at the latest revision (head).  The
-      'neutron_migrations' fact can then be used to determine if migrations
+      'astara_migrations' fact can then be used to determine if migrations
       for either branch are required, and allows us to only apply migrations
       if necessary.
 options:
     release:
         description:
             - This is the OpenStack release you're running, used when
-              searching for migration revisions in the neutron code.
+              searching for migration revisions in the astara code.
         default: liberty
     library_path:
         description:
-            - Local path to the location where the neutron python package
+            - Local path to the location where the astara python package
               is installed.
-        default: /usr/local/lib/python2.7/dist-packages/neutron
+        default: /usr/local/lib/python2.7/dist-packages/astara
     bin_path:
         description:
-            - Local path to the where the neutron binaries are.
+            - Local path to the where the astara binaries are.
         default: /usr/local/bin
 author: Rcbops
 """
 
 
 EXAMPLES = """
-- name: Gather neutron migration facts
-  neutron_migrations_facts:
+- name: Gather astara migration facts
+  astara_migrations_facts:
     release: newton
 """
 
 
 MIGRATIONS = {
     'projects': {
-        'neutron': {
+        'astara': {
             'branches': {
                 'expand': {
                     'revision': None,
@@ -74,45 +74,6 @@ MIGRATIONS = {
             },
             'installed': False
         },
-        'neutron-fwaas': {
-            'branches': {
-                'expand': {
-                    'revision': None,
-                    'head': None
-                },
-                'contract': {
-                    'revision': None,
-                    'head': None
-                }
-            },
-            'installed': False
-        },
-        'neutron-lbaas': {
-            'branches': {
-                'expand': {
-                    'revision': None,
-                    'head': None
-                },
-                'contract': {
-                    'revision': None,
-                    'head': None
-                }
-            },
-            'installed': False
-        },
-        'neutron-vpnaas': {
-            'branches': {
-                'expand': {
-                    'revision': None,
-                    'head': None
-                },
-                'contract': {
-                    'revision': None,
-                    'head': None
-                }
-            },
-            'installed': False
-        }
     },
     'run_contract': True,
     'run_expand': True
@@ -124,7 +85,7 @@ RELEASES = ['newton', 'mitaka', 'liberty']
 def get_branch(release, revision, library_path, project):
     # Here we drop any releases that are newer than the specified release.
     # We have to check previous releases for migrations as at time of writing,
-    # neutron-lbaas doesn't have mitaka migrations and therefore the plugin
+    # astara-lbaas doesn't have mitaka migrations and therefore the plugin
     # will fail unless we also check the previous release's migrations.
     for release in RELEASES[RELEASES.index(release):]:
         migrations_dir = (
@@ -165,7 +126,7 @@ def update_run_keys():
     # migrations will run.
     # TODO(mattt): We will want to try to figure out if migrations in this
     #              situation are expand, contract, or both, so that we avoid
-    #              unnecessary neutron-server downtime.
+    #              unnecessary astara-server downtime.
     for p in projects:
         if (projects[p]['installed'] is True and
                 projects[p]['branches']['expand']['revision'] is None and
@@ -196,7 +157,7 @@ def main():
             ),
             library_path=dict(
                 type='str',
-                default='/usr/local/lib/python2.7/dist-packages/neutron'
+                default='/usr/local/lib/python2.7/dist-packages/astara'
             ),
             bin_path=dict(
                 type='str',
@@ -208,7 +169,7 @@ def main():
 
     if module.params['release'] not in RELEASES:
         module.fail_json(
-            msg='neutron fact collection failed: release %s not found in'
+            msg='astara fact collection failed: release %s not found in'
                 ' %s' % (module.params['release'], RELEASES)
         )
 
@@ -216,19 +177,19 @@ def main():
     project = None
 
     command = [
-        '%s/neutron-db-manage' % get_abs_path(module.params['bin_path']),
+        '%s/astara-db-manage' % get_abs_path(module.params['bin_path']),
         'current'
     ]
 
     try:
         current = subprocess.check_output(command)
     except subprocess.CalledProcessError as e:
-        module.fail_json(msg='neutron fact collection failed: "%s".' % e)
+        module.fail_json(msg='astara fact collection failed: "%s".' % e)
 
     for line in current.splitlines():
         head = False
         project_match = re.search(
-            "^\s*Running current for (neutron(-[a-z]+)?) ...$",
+            "^\s*Running current for (astara(-[a-z]+)?) ...$",
             line
         )
         migration_match = re.search("^([0-9a-z]{4,12})(\s\(head\))?$", line)
@@ -242,7 +203,7 @@ def main():
 
             if project is None:
                 module.fail_json(
-                    msg='neutron fact collection failed: unable to detect'
+                    msg='astara fact collection failed: unable to detect'
                         ' project for revision %s' % revision
                 )
 
@@ -257,7 +218,7 @@ def main():
             )
             if branch is None:
                 module.fail_json(
-                    msg='neutron fact collection failed: unable to find'
+                    msg='astara fact collection failed: unable to find'
                         ' migration with revision %s' % revision
                 )
 
@@ -269,7 +230,7 @@ def main():
 
     module.exit_json(
         changed=state_change,
-        ansible_facts={'neutron_migrations': MIGRATIONS}
+        ansible_facts={'astara_migrations': MIGRATIONS}
     )
 
 if __name__ == '__main__':

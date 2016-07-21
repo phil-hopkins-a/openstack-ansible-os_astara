@@ -1,0 +1,261 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Tasks to install astara
+
+- name: stop the neutron l3 services
+  service: name={{ item }} state=stopped enabled=no
+  with_items:
+   - neutron-l3-agent
+   - neutron-dhcp-agent
+   - neutron-metadata-agent
+
+- name: Create the astara user
+  user: home="/var/lib/astara" createhome=yes system=yes shell=/bin/false name=astara
+
+- name: Create the astara log dir
+  file: dest=/var/log/astara owner=astara group=astara state=directory
+  
+- name: Create the astara lib dir
+  file: dest=/var/lib/astara  owner=astara group=astara state=directory
+
+- name: Create the astara etc dir
+  file: dest=/etc/astara owner=astara group=astara state=directory
+
+- name: Set up astara log rotation
+  copy: src=astara-logrotate dest=/etc/logrotate.d/astara
+
+- name: Set up astara sudoers
+  copy: src=sudoers_astara dest=/etc/sudoers.d/astara_sudoers
+
+- name: use git to clone the astara git repo
+  git: repo=https://github.com/openstack/astara.git version={{openstack_version}}
+     dest=/root/astara
+
+- name: use git to clone the astara-neutron git repo
+  git: repo=https://github.com/openstack/astara-neutron.git version={{openstack_version}}
+     dest=/root/astara-neutron
+
+- name: use git to clone the astara-appliance git repo
+  git: repo=https://github.com/openstack/astara-appliance.git version={{openstack_version}}
+     dest=/root/astara-appliance
+
+- name: copy the astara etc files
+  copy: src=/root/astara/etc/ dest=/etc/astara/
+
+#- name: set up the orchestrator.ini file
+#  copy: src=/etc/astara/orchestrator.ini.sample dest=/etc/astara/orchestrator.ini owner=astara group=astara
+
+#- name: chown the astara policy.json file
+#  file:  path=/etc/astara/ploicy.json owner=astara group=astara state=file
+
+- name: install astara 
+  shell: pip install .
+   chdir=/root/astara
+
+- name: Install astara-neutron
+  shell: pip install .
+    chdir=/root/astara-neutron
+
+- name: set the core_plugins, service_plugins, etc. for astara
+  shell: sed -i 's|\[DEFAULT\]|\[DEFAULT\]\ncore_plugin = astara_neutron.plugins.ml2_neutron_plugin.Ml2Plugin\nservice_plugins = astara_neutron.plugins.ml2_neutron_plugin.L3RouterPlugin\napi_extensions_path = /usr/local/lib/python2.7/dist-packages/astara_neutron/extensions/\nnotification_driver  = neutron.openstack.common.notifier.rpc_notifier|g' /etc/neutron/neutron.conf; touch /etc/astara/core.sed
+    creates=/etc/astara/core.sed
+
+- name: set up port security
+  shell: sed -i 's/\[ML2\]/\[ML2\]\nextension_drivers = port_security\nl2_population = True\n/g' /etc/neutron/plugins/ml2/ml2_conf.ini; touch /etc/astara/ext.sed
+    creates=/etc/astata/ext.sed
+
+- name: set ipv6 in nova conf
+  shell: sed -i  's/\[DEFAULT\]/\[DEFAULT\]\nuse_ipv6=True\nservice_metadata_proxy = True\n/g' /etc/nova/nova.conf; touch /etc/astara/ipv6.sed
+    creates=/etc/astara/ipv6.sed
+
+#- name: fix the nova policy.json file
+#  shell: sed -i  's/"network:attach_external_network": "rule:admin_api"/"network:attach_external_network": "rule:admin_api or role:service"/g' /etc/nova/policy.json; touch /etc/astata/policy.sed
+#    creates=/etc/astata/policy.sed
+
+- name: restart the neutron and nova services
+  service: name={{ item }} state=restarted enabled=yes
+  with_items:
+   - nova-api
+   - neutron-server
+   - neutron-linuxbridge-agent
+
+- name: short delay to allow the services to get started
+  shell: sleep 20
+
+- name: move the neutron l3 upstart files out of the way
+  shell: mv /etc/init/neutron-l3-agent.conf /root
+  ignore_errors: yes
+  when: ubuntu == "u1404"
+
+- name: move the neutron dhcp upstart files out of the way
+  shell: mv /etc/init/neutron-dhcp-agent.conf /root
+  ignore_errors: yes
+  when: ubuntu == "u1404"
+
+- name: move the neutron metadata upstart files out of the way
+  shell: mv /etc/init/neutron-metadata-agent.conf /root
+  ignore_errors: yes
+  when: ubuntu == "u1404"
+
+- name: move the neutron l3 agent upstart files out of the way
+  shell: mv =/lib/systemd/system/neutron-l3-agent.service /root
+  ignore_errors: yes
+  when: ubuntu == "u1604"
+
+- name: move the neutron dhcp agent upstart files out of the way
+  shell: mv =/lib/systemd/system/neutron-dhcp-agent.service /root
+  ignore_errors: yes
+  when: ubuntu == "u1604"
+
+- name: move the neutron metadata agent upstart files out of the way
+  shell: mv =/lib/systemd/system/neutron-metadata-agent.service /root
+  ignore_errors: yes
+  when: ubuntu == "u1604"
+
+- name: Copy the astara orchestrator systemd file
+  copy: src=astara-orchestrator.service dest=/lib/systemd/system/astara-orchestrator.service
+  notify: restart neutron
+  when: ubuntu == "u1604"
+
+- name: Copy the astara orchestrator systemd init file
+  copy: src=astara-orchestrator dest=/etc/init.d/astara-orchestrator mode=755
+  notify: restart neutron
+  when: ubuntu == "u1604"
+
+- name: Create the management network
+  os_network:
+    state: present
+    name: "{{ as_mgmt_net_name }}"
+    external: false
+    auth:
+      auth_url: "{{ as_auth_url }}"
+      username: "{{ as_username }}"
+      password: "{{ as_password }}"
+      project_name: "{{ as_project_name }}"
+  register: "{{ as_mgmt_net_name }}"
+
+- name: Create the management subnet
+  os_subnet:
+    state: present
+    network_name: "{{ as_mgmt_net_name }}"
+    name: "{{ as_mgmt_subnet_name }}"
+    cidr: "{{ as_mgmt_prefix }}"
+    ip_version: "6"
+    ipv6_address_mode: slaac
+    enable_dhcp: true
+    auth:
+      auth_url: "{{ as_auth_url }}"
+      username: "{{ as_username }}"
+      password: "{{ as_password }}"
+      project_name: "{{ as_project_name }}"
+  register: "{{ as_mgmt_subnet_name }}"
+
+- name: Create the external shared network
+  os_network:
+    state: present
+    name: "{{ as_external_net_name }}"
+    external: true
+    shared: true
+    auth:
+      auth_url: "{{ as_auth_url }}"
+      username: "{{ as_username }}"
+      password: "{{ as_password }}"
+      project_name: "{{ as_project_name }}"
+  register: "{{ as_external_net_name }}"
+
+- name: create the external shared subnet
+  os_subnet:
+    state: present
+    network_name: "{{ as_external_net_name }}"
+    name: "{{ as_external_subnet_name }}"
+    cidr: "{{ as_external_prefix }}"
+    ip_version: "4"
+    enable_dhcp: false
+    auth:
+      auth_url: "{{ as_auth_url }}"
+      username: "{{ as_username }}"
+      password: "{{ as_password }}"
+      project_name: "{{ as_project_name }}"
+  register: "{{ as_external_subnet_name }}"
+
+- name: copy the ssh keys
+  copy: src=/root/.ssh/id_rsa.pub dest=/etc/astara/ owner=root group=root mode=600
+
+- name: Install a pip dependency
+  pip: name=PyMySQL
+
+- name: Setup DB for astara
+  shell: creates=/var/lib/mysql/astara mysql -u root -p{{ mysql_root_pass }} -e "CREATE DATABASE astara;"
+         
+- name: Give right to astara user.
+  mysql_user: login_user=root login_password={{ mysql_root_pass }} name=astara password={{ astara_db_pass }} priv=*.*:ALL host='%' state=present
+
+- name: create the astara db tables
+  shell: /usr/local/bin/astara-dbsync --config-file /etc/astara/orchestrator.ini upgrade; touch /etc/astara/db.synced
+         creates=/etc/astara/db.synced
+
+- name: build the astara appliance
+  shell: ELEMENTS_PATH=diskimage-builder/elements DIB_RELEASE=jessie DIB_EXTLINUX=1 disk-image-create debian vm astara -o astara
+    chdir=/root/astara-appliance
+
+- name: Create the router image (this can also be the loadbalancer image)
+  os_image:
+    state: present
+    name: astara_router
+    container_format: bare
+    disk_format: qcow2
+    filename: /root/astara-appliance/astara.qcow2 
+    auth:
+      auth_url: "{{ as_auth_url }}"
+      username: "{{ as_username }}"
+      password: "{{ as_password }}"
+      project_name: "{{ as_project_name }}"
+
+- name: Get the router image id
+  os_image_facts:
+    image: astara_router
+    auth:
+      auth_url: "{{ as_auth_url }}"
+      username: "{{ as_username }}"
+      password: "{{ as_password }}"
+      project_name: "{{ as_project_name }}"
+  register: astara_router
+
+- name: create a flavor for the astara router image
+  os_nova_flavor:
+    state: present
+    name: m1_astara
+    ram: 512
+    vcpus: 1
+    disk: 3
+    is_public: true
+    auth:
+      auth_url: "{{ as_auth_url }}"
+      username: "{{ as_username }}"
+      password: "{{ as_password }}"
+      project_name: "{{ as_project_name }}"
+  register: m1_astara
+
+- name: copy the orchestrator.ini file
+  template: src=orchestrator.ini.j2  dest=/etc/astara/orchestrator.ini owner=astara group=astara
+
+- name: create the astara upstart file
+  copy: src=astara_init dest=/etc/init/astara.conf
+  when: ubuntu == "u1404"
+
+- name: start the astara service
+  service: name=astara state=started enabled=yes
+
